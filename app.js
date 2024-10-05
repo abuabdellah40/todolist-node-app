@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 const express = require("express");
 const bodyParser = require("body-parser");
+const mongoURI = process.env.MONGO_URI;
 
 const app = express();
 
@@ -10,9 +11,7 @@ app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-mongoose.connect(
-  "mongodb+srv://fuadtafese98:d0YXQ1LV4jxkzHQP@cluster0.am94g.mongodb.net/todolistDB?retryWrites=true&w=majority"
-);
+mongoose.connect(mongoURI);
 
 
 // Define the items schema and model
