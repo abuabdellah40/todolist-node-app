@@ -1,4 +1,7 @@
 //jshint esversion:6
+require("dotenv").config(); // Load environment variables
+
+const _ = require("lodash");
 const mongoose = require("mongoose");
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -11,8 +14,10 @@ app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-mongoose.connect(mongoURI);
-
+mongoose
+  .connect(mongoURI)
+  .then(() => console.log("Successfully connected to MongoDB"))
+  .catch((err) => console.error("Connection error:", err));
 
 // Define the items schema and model
 const itemsSchema = new mongoose.Schema({
@@ -108,20 +113,43 @@ app.post("/", function (req, res) {
 });
 
 // POST route to delete an item
-// POST route to delete an item
 app.post("/delete", function (req, res) {
   const itemId = req.body.checkbox;
+  const listName = req.body.listName;
 
-  // Find the item by its ID and delete it
-  Item.findByIdAndDelete(itemId)
-    .then(() => {
-      console.log("Successfully deleted item with id:", itemId);
-      res.redirect("/"); // After deletion, redirect to the homepage
-    })
-    .catch((err) => {
-      console.error("Error deleting item:", err);
-    });
+  // If the list is the default "Today" list, remove the item from the Item collection
+  if (listName === "Today") {
+    // Use findByIdAndDelete instead of findByIdAndRemove
+    Item.findByIdAndDelete(itemId)
+      .then(() => {
+        console.log(
+          "Successfully deleted item from Today list with id:",
+          itemId
+        );
+        res.redirect("/"); // Redirect back to the default list
+      })
+      .catch((err) => {
+        console.error("Error deleting item from Today list:", err);
+      });
+  } else {
+    // If it's a custom list, find the list and remove the item from the items array
+    List.findOneAndUpdate(
+      { name: listName }, // Find the list by name
+      { $pull: { items: { _id: itemId } } } // Remove the item from the items array
+    )
+      .then(() => {
+        console.log(
+          `Successfully deleted item from ${listName} with id:`,
+          itemId
+        );
+        res.redirect("/" + listName); // Redirect back to the custom list
+      })
+      .catch((err) => {
+        console.error(`Error deleting item from ${listName}:`, err);
+      });
+  }
 });
+
 
 app.get("/:customListName", function (req, res) {
   const customListName = _.capitalize(req.params.customListName); // Use Lodash to handle the custom list name
@@ -132,7 +160,7 @@ app.get("/:customListName", function (req, res) {
         // Create a new list if it doesn't exist
         const list = new List({
           name: customListName,
-          items: defaultItems,
+          items: defaultItem,
         });
         return list.save().then(() => res.redirect("/" + customListName));
       } else {
